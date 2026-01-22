@@ -1,24 +1,23 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
-use axum::Router;
-use axum::routing::get;
+use axum::{Router, routing::get};
 
 use tower_http::services::ServeDir;
 
 use dotenv::dotenv;
-use std::{env, process};
+use std::env;
 
 mod handlers;
 mod repository;
+mod service;
 
 use crate::handlers::todo::todo_router;
-use crate::repository::conf;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Парсинг данных с .env файла
     dotenv().ok();
-    let db_url = env::var("DATABASE_URL").expect("Не нашёл в .env DATABASE_URL");
+    let db_url = env::var("DATABASE_URL").expect("Cannot find in .env variable DATABASE_URL");
     let port: u16 = env::var("PORT")
         .expect("Cannot find PORT var in .env")
         .parse()
@@ -31,29 +30,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // адрес здесь
     let actuall_ip = listener.local_addr()?;
 
-    let pool = match conf::configure_db(&db_url).await {
-        Ok(val) => val,
-        Err(err) => {
-            eprintln!("Cannot connect to database: {err}");
-            process::exit(1);
-        }
-    };
-
-    let state = AppState { db: pool };
+    let todo_service: Arc<service::todo::Service> =
+        Arc::new(service::todo::Service::new(&db_url).await?);
 
     println!("Server is connect to: {}", actuall_ip);
 
-    axum::serve(listener, app(state)).await?;
+    axum::serve(listener, app(todo_service)).await?;
 
     Ok(())
 }
 
-#[derive(Clone)]
-struct AppState {
-    db: sqlx::MySqlPool,
-}
-
-fn app(state: AppState) -> Router {
+fn app(service: Arc<service::todo::Service>) -> Router {
     let static_folder = ServeDir::new("static/");
     Router::new()
         .nest(
@@ -64,5 +51,5 @@ fn app(state: AppState) -> Router {
                 .nest("/todo/", todo_router()),
         )
         .fallback_service(static_folder)
-        .with_state(state)
+        .with_state(service)
 }

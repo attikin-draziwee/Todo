@@ -10,6 +10,7 @@ dotenv = "0.15.0"
 serde = {version = "1.0.228", features = ["derive", "std"]}
 serde_json = "1.0.149"
 sqlx = {version = "0.8.6", features = [ "runtime-tokio-rustls", "tls-rustls", "mysql", "chrono", "uuid", "migrate" ]}
+thiserror = "2.0.18"
 tokio = {version = "1.49.0", features = ["full"]}
 tower-http = {version = "0.6.8", features = ["fs"]}
 

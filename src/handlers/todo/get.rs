@@ -1,4 +1,6 @@
-use crate::{AppState, repository::models::TodoDataBase};
+use std::sync::Arc;
+
+use crate::{repository::models::TodoModel, service};
 
 use axum::{
     Json,
@@ -6,22 +8,21 @@ use axum::{
     http::StatusCode,
 };
 
-use crate::repository;
-
 pub async fn todo(
+    State(state): State<Arc<service::todo::Service>>,
     Path(id): Path<u32>,
-    State(state): State<AppState>,
-) -> (StatusCode, Json<Option<TodoDataBase>>) {
-    match repository::models::fetch_todo_by_id(id, &state.db).await {
-        Ok(todo) => (StatusCode::OK, Json(Some(todo))),
-        Err(_) => (StatusCode::NOT_FOUND, Json(None)),
+) -> (StatusCode, Json<Option<TodoModel>>) {
+    match state.get_todo(id).await {
+        Some(value) => (StatusCode::OK, Json(Some(value))),
+        None => (StatusCode::NOT_FOUND, Json(None)),
     }
 }
 
-#[axum::debug_handler]
-pub async fn todos(State(state): State<AppState>) -> (StatusCode, Json<Option<Vec<TodoDataBase>>>) {
-    match repository::models::list_todo(&state.db).await {
-        Ok(v) => (StatusCode::OK, Json(Some(v))),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(None)),
+pub async fn todos(
+    State(state): State<Arc<service::todo::Service>>,
+) -> (StatusCode, Json<Option<Vec<TodoModel>>>) {
+    match state.get_list_todo().await {
+        Some(v) => (StatusCode::OK, Json(Some(v))),
+        None => (StatusCode::INTERNAL_SERVER_ERROR, Json(None)),
     }
 }

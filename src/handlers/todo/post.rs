@@ -1,27 +1,22 @@
+use std::sync::Arc;
+
 use axum::{Json, extract::State, http::StatusCode};
 
-use crate::{AppState, handlers::todo::model::TodoCreate, repository::models::count_todos};
+use crate::{
+    repository::models::{TodoCreate, TodoModel},
+    service::todo::Service,
+};
 
-pub async fn todo(State(state): State<AppState>, Json(todo): Json<TodoCreate>) -> StatusCode {
-    let count = match count_todos(&state.db).await {
-        Ok(c) => (c + 1) as u32,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
-    };
-    let result = sqlx::query!(
-        "INSERT INTO todo (id, title, content)
-        VALUES (?, ?, ?)",
-        count,
-        todo.get_title(),
-        todo.get_content()
-    )
-    .execute(&state.db)
-    .await;
-
-    match result {
-        Ok(_) => StatusCode::CREATED,
+#[axum::debug_handler]
+pub async fn todo(
+    State(service): State<Arc<Service>>,
+    Json(todo): Json<TodoCreate>,
+) -> (StatusCode, Json<Option<TodoModel>>) {
+    match service.create_todo(todo).await {
+        Ok(todo) => (StatusCode::CREATED, Json(Some(todo))),
         Err(err) => {
-            eprintln!("Error: {err}");
-            StatusCode::INTERNAL_SERVER_ERROR
+            eprintln!("Failed to create todo: {err:#?}");
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
         }
     }
 }
