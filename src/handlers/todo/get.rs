@@ -8,15 +8,14 @@ use axum::{
 
 use crate::repository;
 
-pub async fn todo(Path(id): Path<usize>) -> (StatusCode, Json<Todo>) {
-    (
-        StatusCode::OK,
-        Json(Todo::new(
-            id,
-            "Hello",
-            "Hello, World! What can I do for you?",
-        )),
-    )
+pub async fn todo(
+    Path(id): Path<u32>,
+    State(state): State<AppState>,
+) -> (StatusCode, Json<Option<TodoDataBase>>) {
+    match repository::models::fetch_todo_by_id(id, &state.db).await {
+        Ok(todo) => (StatusCode::OK, Json(Some(todo))),
+        Err(_) => (StatusCode::NOT_FOUND, Json(None)),
+    }
 }
 
 #[axum::debug_handler]

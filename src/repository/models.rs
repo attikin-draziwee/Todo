@@ -32,3 +32,13 @@ pub async fn list_todo(db: &MySqlPool) -> Result<Vec<TodoDataBase>, sqlx::Error>
     .fetch_all(db)
     .await
 }
+
+pub async fn fetch_todo_by_id(id: u32, db: &MySqlPool) -> Result<TodoDataBase, sqlx::Error> {
+    sqlx::query_as!(
+        TodoDataBase,
+        "SELECT id, title, content, created, updated FROM todo WHERE id = ?",
+        id
+    )
+    .fetch_one(db)
+    .await
+}
