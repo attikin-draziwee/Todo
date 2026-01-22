@@ -1,4 +1,4 @@
-use crate::{AppState, handlers::todo::model::Todo, repository::models::TodoDataBase};
+use crate::{AppState, repository::models::TodoDataBase};
 
 use axum::{
     Json,
