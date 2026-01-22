@@ -11,3 +11,10 @@ We create a TODO application on Rust + Axum as a main web framework.
 - Persistence using database
 - Authentication (JWT based)
 - Monitoring (logging)
+
+## sqlx 
+1. sqlx database reset
+
+## .env 
+DATABASE_URL=mysql://todo:todo@localhost/todo_api
+PORT=3000

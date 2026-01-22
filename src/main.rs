@@ -1,54 +1,68 @@
 use std::net::SocketAddr;
 
+use axum::Router;
 use axum::routing::get;
-use axum::{Json, Router};
 
 use tower_http::services::ServeDir;
 
-use serde_json::{Value, json};
+use dotenv::dotenv;
+use std::{env, process};
 
 mod handlers;
+mod repository;
 
 use crate::handlers::todo::todo_router;
-
-const PORT: u16 = 3000;
+use crate::repository::conf;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let ip_addr = SocketAddr::from(([127, 0, 0, 1], PORT));
+    // Парсинг данных с .env файла
+    dotenv().ok();
+    let db_url = env::var("DATABASE_URL").expect("Не нашёл в .env DATABASE_URL");
+    let port: u16 = env::var("PORT")
+        .expect("Cannot find PORT var in .env")
+        .parse()
+        .unwrap_or(0);
 
+    let ip_addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(ip_addr).await?;
 
-    axum::serve(listener, app()).await?;
+    // В случаи если порт не задан в .env он задаётся рандомно и указывается актуальный
+    // адрес здесь
+    let actuall_ip = listener.local_addr()?;
+
+    let pool = match conf::configure_db(&db_url).await {
+        Ok(val) => val,
+        Err(err) => {
+            eprintln!("Cannot connect to database: {err}");
+            process::exit(1);
+        }
+    };
+
+    let state = AppState { db: pool };
+
+    println!("Server is connect to: {}", actuall_ip);
+
+    axum::serve(listener, app(state)).await?;
 
     Ok(())
 }
 
-fn app() -> Router {
+#[derive(Clone)]
+struct AppState {
+    db: sqlx::MySqlPool,
+}
+
+fn app(state: AppState) -> Router {
     let static_folder = ServeDir::new("static/");
     Router::new()
-        .nest_service(
+        .nest(
             "/api",
             Router::new()
-                .route("/", get(hello_api))
-                .route("/health", get(health))
-                .nest_service("/todo", todo_router()),
+                .route("/", get(handlers::hello_api))
+                .route("/health", get(handlers::health))
+                .nest("/todo/", todo_router()),
         )
         .fallback_service(static_folder)
-}
-
-async fn hello_api() -> Json<Value> {
-    Json(json!({
-        "status" : "ok",
-        "message" : "Hello, World!"
-    }))
-}
-
-pub async fn health() -> Json<Value> {
-    Json(json!(
-        {
-            "status": "ok",
-            "message": "it is working!"
-        }
-    ))
+        .with_state(state)
 }

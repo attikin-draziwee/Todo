@@ -1,1 +1,4 @@
 /target
+/.git
+# Local data from Database 
+/data 

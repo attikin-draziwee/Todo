@@ -3,15 +3,15 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::handlers::todo;
+use crate::AppState;
 
 mod get;
 mod model;
 mod post;
 
-pub fn todo_router() -> Router {
+pub fn todo_router() -> Router<AppState> {
     Router::new()
-        .route("/", get(todo::get::todos))
-        .route("/", post(todo::post::todo))
-        .route("/{id}", get(todo::get::todo))
+        .route("/", get(get::todos))
+        .route("/", post(post::todo))
+        .route("/{id}", get(get::todo))
 }

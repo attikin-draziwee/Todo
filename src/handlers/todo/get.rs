@@ -1,6 +1,12 @@
-use crate::handlers::todo::model::Todo;
+use crate::{AppState, handlers::todo::model::Todo, repository::models::TodoDataBase};
 
-use axum::{Json, extract::Path, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+};
+
+use crate::repository;
 
 pub async fn todo(Path(id): Path<usize>) -> (StatusCode, Json<Todo>) {
     (
@@ -13,13 +19,10 @@ pub async fn todo(Path(id): Path<usize>) -> (StatusCode, Json<Todo>) {
     )
 }
 
-pub async fn todos() -> (StatusCode, Json<Vec<Todo>>) {
-    (
-        StatusCode::OK,
-        Json(
-            (0..=5)
-                .map(|el| Todo::new(el as usize, &format!("Todo#{el}"), "some content, y'now"))
-                .collect::<Vec<Todo>>(),
-        ),
-    )
+#[axum::debug_handler]
+pub async fn todos(State(state): State<AppState>) -> (StatusCode, Json<Option<Vec<TodoDataBase>>>) {
+    match repository::models::list_todo(&state.db).await {
+        Ok(v) => (StatusCode::OK, Json(Some(v))),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(None)),
+    }
 }
