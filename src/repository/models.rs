@@ -47,3 +47,14 @@ impl From<(String, String)> for TodoCreate {
         }
     }
 }
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct TodoPatch {
+    pub title: Option<String>,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct TodoPut {
+    pub title: String,
+    pub content: String,
+}

@@ -1,6 +1,6 @@
 use sqlx::MySqlPool;
 
-use crate::repository::models::{TodoCreate, TodoModel};
+use crate::repository::models::{TodoCreate, TodoModel, TodoPut};
 
 pub async fn list_todo(db: &MySqlPool) -> Result<Vec<TodoModel>, sqlx::Error> {
     sqlx::query_as!(
@@ -43,4 +43,55 @@ pub async fn insert_todo(db: &MySqlPool, todo: TodoCreate) -> Result<TodoModel, 
         todo.get_title(),
         todo.get_content(),
     ))
+}
+
+pub async fn delete_todo(db: &MySqlPool, id: u32) -> Result<(), sqlx::Error> {
+    match sqlx::query!(
+        "
+        DELETE FROM todo
+        WHERE id = ?
+        ",
+        id
+    )
+    .execute(db)
+    .await
+    {
+        Ok(value) => match value.rows_affected() {
+            0 => Err(sqlx::Error::RowNotFound),
+            _ => Ok(()),
+        },
+        Err(err) => Err(err),
+    }
+}
+
+pub async fn patch_todo(
+    db: &MySqlPool,
+    id: u32,
+    title: Option<String>,
+    content: Option<String>,
+) -> Result<TodoModel, sqlx::Error> {
+    let result = sqlx::query!(
+        "
+        UPDATE todo 
+        SET 
+            title = COALESCE(?, title),
+            content = COALESCE(?, content)
+        WHERE id = ?
+        ",
+        title,
+        content,
+        id
+    )
+    .execute(db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    Ok(fetch_todo_by_id(id, db).await?)
+}
+
+pub async fn put_todo(db: &MySqlPool, id: u32, todo: TodoPut) -> Result<TodoModel, sqlx::Error> {
+    Ok(patch_todo(&db, id, Some(todo.title), Some(todo.content)).await?)
 }
