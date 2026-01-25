@@ -89,9 +89,28 @@ pub async fn patch_todo(
         return Err(sqlx::Error::RowNotFound);
     }
 
-    Ok(fetch_todo_by_id(id, db).await?)
+    fetch_todo_by_id(id, db).await
 }
 
 pub async fn put_todo(db: &MySqlPool, id: u32, todo: TodoPut) -> Result<TodoModel, sqlx::Error> {
-    Ok(patch_todo(&db, id, Some(todo.title), Some(todo.content)).await?)
+    let result = sqlx::query!(
+        "
+        UPDATE todo 
+        SET 
+            title = ?,
+            content = ?
+        WHERE id = ?
+        ",
+        todo.title,
+        todo.content,
+        id
+    )
+    .execute(db)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    fetch_todo_by_id(id, db).await
 }
